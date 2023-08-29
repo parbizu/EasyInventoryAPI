@@ -1,0 +1,272 @@
+const AWS = require('aws-sdk');
+const express = require('express');
+const uuid = require('uuid');
+
+const IS_OFFLINE = process.env.NODE_ENV !== 'production';
+const EMPLOYEES_TABLE = process.env.TABLE;
+
+const dynamoDb = IS_OFFLINE === true ?
+    new AWS.DynamoDB.DocumentClient({
+        region: 'eu-west-2',
+        endpoint: 'http://127.0.0.1:8080',
+    }) :
+    new AWS.DynamoDB.DocumentClient();
+
+const router = express.Router();
+
+router.get('/productos', (req, res) => {
+    
+     var docClient = new AWS.DynamoDB.DocumentClient();
+    
+    let uid = '48a29fe6-153c-4cf7-b46c-5e26fff59c74';
+    var params = {
+      TableName: "productos",
+      IndexName: "uid-index",
+      KeyConditionExpression: "uid = :p",
+      ExpressionAttributeValues: {
+          ":p": uid
+      },  
+    };
+  
+
+
+docClient.query(params, function(err, data) {
+        if (err) {
+            res.status(400).json({ err: 'Error fetching the employees' });
+        }
+        console.log(data);
+        res.json(data);
+    });
+
+
+
+
+
+    /*
+    const params = {
+        TableName: EMPLOYEES_TABLE
+    };
+    console.log(EMPLOYEES_TABLE)
+    dynamoDb.scan(params, (error, result) => {
+        if (error) {
+            res.status(400).json({ error: 'Error fetching the employees' });
+        }
+        res.json(result.Items);
+    });
+    */
+
+});
+
+
+
+router.get('/usuarios/:id/productos', (req, res) => {
+    
+     let uid = req.params.id;
+
+    var docClient = new AWS.DynamoDB.DocumentClient();
+    var params = {
+      TableName: "productos",
+      IndexName: "uid-estado-index",
+      KeyConditionExpression: "uid = :p AND estado = :estado",
+      ExpressionAttributeValues: {
+          ":p": uid,
+          ":estado": 'ACTIVO'
+      },  
+    };
+  
+
+
+docClient.query(params, function(err, data) {
+        if (err) {
+            res.status(400).json({ err: err });
+        }else{
+            if (data)
+                res.json(data.Items);
+            else
+                res.json([]);
+
+        }
+    
+    });
+
+
+
+
+
+   
+});
+
+
+router.get('/employees/:id', (req, res) => {
+    const id = req.params.id;
+
+    const params = {
+        TableName: EMPLOYEES_TABLE,
+        Key: {
+            id
+        }
+    };
+
+    dynamoDb.get(params, (error, result) => {
+        if (error) {
+            res.status(400).json({ error: 'Error retrieving Employee' });
+        }
+        if (result.Item) {
+            res.json(result.Item);
+        } else {
+            res.status(404).json({ error: `Employee with id: ${id} not found` });
+        }
+    });
+});
+
+
+router.post('/productos', (req, res) => {
+    
+    const singular = req.body.singular;
+    const plural = req.body.plural;
+    const precio = req.body.precio;
+    const uid = req.body.uid;
+    const estado = req.body.estado;
+    const id = uuid.v4();
+
+    const params = {
+        TableName: EMPLOYEES_TABLE,
+        Item: {
+            id,
+            singular,
+            plural,
+            precio,
+            estado,
+            uid
+        },
+    };
+
+    dynamoDb.put(params, (error) => {
+        if (error) {
+            res.status(400).json({ error: 'Could not create Employee' });
+        }
+        res.json({
+            id,
+            singular
+        });
+    });
+});
+
+
+
+router.put('/productos', (req, res) => {
+    
+    const singular = req.body.singular;
+    const plural = req.body.plural;
+    const precio = req.body.precio;
+    const estado = req.body.estado;
+    const id = req.body.id;
+
+    console.log(id);
+    console.log(plural);
+
+    const params = {
+        TableName: EMPLOYEES_TABLE,
+        Key: {
+            id
+        },
+        UpdateExpression: 'set singular = :singular,plural = :plural,precio = :precio,estado = :estado',
+        ExpressionAttributeValues:{
+          ":singular":singular,
+          ":plural":plural,
+          ":precio":precio,
+          ":estado" : estado
+        },
+        ReturnValues: "ALL_NEW"
+    }
+
+    dynamoDb.update(params, (error, result) => {
+        if (error) {
+            console.log(error);
+            res.status(400).json({ error: 'Could not update Employee' });
+        }else{
+
+            res.json({
+            resultado : result 
+            });
+
+        }
+        
+        
+
+    })
+
+
+
+
+    
+});
+
+
+
+
+router.post('/employees', (req, res) => {
+    const name = req.body.name;
+    const id = uuid.v4();
+
+    const params = {
+        TableName: EMPLOYEES_TABLE,
+        Item: {
+            id,
+            name
+        },
+    };
+
+    dynamoDb.put(params, (error) => {
+        if (error) {
+            res.status(400).json({ error: 'Could not create Employee' });
+        }
+        res.json({
+            id,
+            name
+        });
+    });
+});
+
+router.delete('/productos/:id', (req, res) => {
+    const id = req.params.id;
+
+    const params = {
+        TableName: EMPLOYEES_TABLE,
+        Key: {
+            id
+        }
+    };
+
+    dynamoDb.delete(params, (error) => {
+        if (error) {
+            res.status(400).json({ error: 'Could not delete Employee' });
+        }
+        res.json({ success: true });
+    });
+});
+
+router.put('/employees', (req, res) => {
+    const id = req.body.id;
+    const name = req.body.name;
+
+    const params = {
+        TableName: EMPLOYEES_TABLE,
+        Key: {
+            id
+        },
+        UpdateExpression: 'set #name = :name',
+        ExpressionAttributeNames: { '#name': 'name' },
+        ExpressionAttributeValues: { ':name': name },
+        ReturnValues: "ALL_NEW"
+    }
+
+    dynamoDb.update(params, (error, result) => {
+        if (error) {
+            res.status(400).json({ error: 'Could not update Employee' });
+        }
+        res.json(result.Attributes);
+    })
+});
+
+module.exports = router;
