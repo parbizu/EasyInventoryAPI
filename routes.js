@@ -2,6 +2,8 @@ const AWS = require('aws-sdk');
 const express = require('express');
 const uuid = require('uuid');
 
+var ses = new AWS.SES({region: 'us-east-1'});
+
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
 const router = express.Router();
@@ -171,66 +173,45 @@ function sort_by_key(array, key)
 
 
 
-router.post('/sendInventory', (req, res) => {
+router.post('/sendInventory', async (req, res) => {
     
     const userId = req.body.userId;
    
-
-   
-
     res.set({
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': 'https://producto.asistente.ai',
-  'Access-Control-Allow-Headers': 'Content-Type'
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type'
     })
 
+    const emailParams = {
+        Destination: {
+          ToAddresses: ["plinio.arbizu@gmail.com"],
+        },
+        Message: {
+          Body: {
+            Text: { Data: userId },
+          },
+          Subject: { Data: 'hola 2' },
+        },
+        Source: "notifications@asistente.ai",
+  };
+        
+  try {
+        let key = await ses.sendEmail(emailParams).promise();
+        console.log("MAIL SENT SUCCESSFULLY!!",key);   
+        res.json({
+            resultado : 'OK' 
+            });
+
+  } catch (e) {
+        console.log("FAILURE IN SENDING MAIL!!", e);
+        res.json({
+            resultado : 'KO' 
+            });
+      } 
+  
     
 });
-
-
- function sendSummary(correo,total,items,fecha,appPath,lang,moneda,attachments){
-
-    const emailt = new Email({
-      transport: transporter,
-      send: true,
-      preview: false,
-      views: {root : appPath +'/emails/'+lang}
-    });
-    emailt.send({
-      template: 'venta',
-      message: {
-        from: 'notifications@asistente.ai',
-        to: correo,
-        attachments: attachments
-      },
-      locals: {
-        fecha : fecha,
-
-        items: items
-      }
-    }).then(() => {
-      console.log("Sent register email.")
-    }).catch((err) => {
-      console.error("Error sending register email: " + err)
-    });  
-
-}
-
-router.post('/envia', (req, res) => {
-    
-    res.set({
-  'Content-Type': 'application/json',
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type'
-})
-
-res.json({ resultado : 'OK'
-});
-
-});
-
-
-
 
 
 router.put('/pregunta', (req, res) => {
