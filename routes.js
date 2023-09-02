@@ -2,7 +2,13 @@ const AWS = require('aws-sdk');
 const express = require('express');
 const uuid = require('uuid');
 
+var nodemailer = require("nodemailer");
+const Email = require('email-templates');
+
 var ses = new AWS.SES({region: 'us-east-1'});
+var transporter = nodemailer.createTransport({
+    SES: ses
+  });
 
 const dynamoDb = new AWS.DynamoDB.DocumentClient();
 
@@ -176,6 +182,7 @@ function sort_by_key(array, key)
 router.post('/sendInventory', async (req, res) => {
     
     const userId = req.body.userId;
+    const email = req.body.email;
    
     res.set({
     'Content-Type': 'application/json',
@@ -183,34 +190,32 @@ router.post('/sendInventory', async (req, res) => {
     'Access-Control-Allow-Headers': 'Content-Type'
     })
 
-    const emailParams = {
-        Destination: {
-          ToAddresses: ["plinio.arbizu@gmail.com"],
-        },
-        Message: {
-          Body: {
-            Text: { Data: userId },
-          },
-          Subject: { Data: 'hola 2' },
-        },
-        Source: "notifications@asistente.ai",
-  };
-        
-  try {
-        let key = await ses.sendEmail(emailParams).promise();
-        console.log("MAIL SENT SUCCESSFULLY!!",key);   
+    let appPath = __dirname
+
+    const emailt = new Email({
+        transport: transporter,
+        send: true,
+        preview: false,
+        views: {root : appPath +'/emails/es-MX'}
+      });
+      emailt.send({
+        template: 'help',
+        message: {
+          from: 'notifications@asistente.ai',
+          to: email
+        }
+      }).then(() => {
+        console.log("Sent register email.")
         res.json({
             resultado : 'OK' 
             });
-
-  } catch (e) {
-        console.log("FAILURE IN SENDING MAIL!!", e);
+      }).catch((err) => {
+        console.error("Error sending register email: " + err)
         res.json({
             resultado : 'KO' 
             });
-      } 
-  
-    
+      });  
+
 });
 
 
