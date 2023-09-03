@@ -5,6 +5,9 @@ const uuid = require('uuid');
 var nodemailer = require("nodemailer");
 const Email = require('email-templates');
 
+const json2csv = require('json2csv').parse;
+const fs = require('fs');
+
 var ses = new AWS.SES({region: 'us-east-1'});
 var transporter = nodemailer.createTransport({
     SES: ses
@@ -183,6 +186,8 @@ router.post('/sendInventory', async (req, res) => {
     
     const userId = req.body.userId;
     const email = req.body.email;
+    let items = await getInventories(userId)
+    let attachments = await getInventoryFile (items)
    
     res.set({
     'Content-Type': 'application/json',
@@ -202,7 +207,8 @@ router.post('/sendInventory', async (req, res) => {
         template: 'help',
         message: {
           from: 'notifications@asistente.ai',
-          to: email
+          to: email,
+          attachments: attachments
         }
       }).then(() => {
         console.log("Sent register email.")
@@ -218,6 +224,74 @@ router.post('/sendInventory', async (req, res) => {
 
 });
 
+async function getInventoryFile(items){
+
+    var fields = ['category','product','quantity']
+    const opts = {
+        fields
+    };
+
+    const csv = json2csv(items, opts);
+    var filename = Date.now();
+    var path = '/tmp/' + filename + '.csv';
+
+    console.log('path:'+path)
+
+    return new Promise(function(resolve, reject) {
+
+    fs.writeFile(path, csv, function (err, data) {
+        if (err) {
+            console.log('err:'+err)
+            reject(err)
+            throw err;
+        } else {
+
+          var attachments = [{ // file on disk as an attachment
+            filename: filename+'.csv',
+            path: '/tmp/'+filename+'.csv' // stream this file
+          }]
+          
+          resolve(attachments);
+        
+            }
+        });
+    });
+
+}
+
+
+
+async function getInventories(userId){
+
+    var docClient = new AWS.DynamoDB.DocumentClient();
+  
+    var params = {
+     TableName: "sw_inventories",
+     IndexName: "userId-index",
+     KeyConditionExpression: "userId = :userId",
+     ExpressionAttributeValues: {
+         ":userId": userId
+     },  
+    };
+
+ 
+    return new Promise(function(resolve, reject) {
+
+        docClient.query(params, function(err, data) {
+            if (err) {
+                reject({ err: err });
+            }else{
+                if (data)
+                resolve(sort_by_key(data.Items, 'category'));
+                else
+                    resolve([]);
+            }
+            });
+        
+ 
+    });
+
+}
 
 router.put('/pregunta', (req, res) => {
     
