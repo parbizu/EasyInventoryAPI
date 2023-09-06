@@ -180,13 +180,28 @@ function sort_by_key(array, key)
  });
 }
 
+router.post('/envia', async (req, res) => {
+
+    res.json({
+        resultado : 'OK' 
+        });
+
+});
 
 
 router.post('/sendInventory', async (req, res) => {
     
     const userId = req.body.userId;
-    const email = req.body.email;
-    let items = await getInventories(userId)
+    let email = req.body.email;
+        
+    let items= await getInventories(userId)
+
+    console.log('items[1]'+ JSON.stringify(items))
+
+    let lang = (items[1].lang).substring(0,2);
+
+    console.log('lang ='+lang)
+
     let attachments = await getInventoryFile (items)
    
     res.set({
@@ -201,10 +216,10 @@ router.post('/sendInventory', async (req, res) => {
         transport: transporter,
         send: true,
         preview: false,
-        views: {root : appPath +'/emails/es-MX'}
+        views: {root : appPath +'/emails/'+lang}
       });
       emailt.send({
-        template: 'help',
+        template: 'inventory',
         message: {
           from: 'notifications@asistente.ai',
           to: email,
@@ -226,7 +241,7 @@ router.post('/sendInventory', async (req, res) => {
 
 async function getInventoryFile(items){
 
-    var fields = ['category','product','quantity']
+    var fields = ['PRODUCT','QUANTITY']
     const opts = {
         fields
     };
@@ -234,8 +249,6 @@ async function getInventoryFile(items){
     const csv = json2csv(items, opts);
     var filename = Date.now();
     var path = '/tmp/' + filename + '.csv';
-
-    console.log('path:'+path)
 
     return new Promise(function(resolve, reject) {
 
@@ -281,8 +294,39 @@ async function getInventories(userId){
             if (err) {
                 reject({ err: err });
             }else{
-                if (data)
-                resolve(sort_by_key(data.Items, 'category'));
+                if (data){
+                    let rows = []
+                    let items = sort_by_key(data.Items, 'category');
+                    let lastCategory = 'NONE'
+                    let total = 0;
+                    items.forEach(function(item) {
+                        if (lastCategory !==item.category){
+                            if (item.category==='CAPTURED')
+                                rows.push({'PRODUCT':'CAPTURED INVENTORY******','QUANTITY':''});
+                            if (item.category==='CONSOLIDATED'){
+                                rows.push({'PRODUCT':'TOTAL*******************','QUANTITY':total});
+                                total = 0;
+                                rows.push({'PRODUCT':'CONSOLIDATED INVENTORY*****','QUANTITY':''});
+                            }
+                        }
+                        lastCategory = item.category
+
+                        let row = {
+                            'PRODUCT':item.product,
+                            'QUANTITY':item.quantity,
+                            'lang' : item.lang
+                          }
+
+                          total = total + item.quantity;
+
+                          rows.push(row)
+                    
+                    })
+                    rows.push({'PRODUCT':'TOTAL*******************','QUANTITY':total});
+                    resolve(rows)
+                    
+                }
+               
                 else
                     resolve([]);
             }
