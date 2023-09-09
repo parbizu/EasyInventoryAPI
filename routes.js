@@ -196,12 +196,8 @@ router.post('/sendInventory', async (req, res) => {
         
     let items= await getInventories(userId)
 
-    console.log('items[1]'+ JSON.stringify(items))
-
     let lang = (items[1].lang).substring(0,2);
-
-    console.log('lang ='+lang)
-
+  
     let attachments = await getInventoryFile (items)
    
     res.set({
@@ -367,9 +363,9 @@ router.put('/pregunta', (req, res) => {
 
     dynamoDb.update(params, (error, result) => {
 
-        console.log('adadda')
+      
         if (error) {       
-         console.log(error);
+       
          //reject(error);
          res.status(400).json({ error: 'Could not update Employee' });
         }else{
