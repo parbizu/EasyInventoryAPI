@@ -384,7 +384,7 @@ router.put('/pregunta', (req, res) => {
 router.put('/item', (req, res) => {
     
     const product = req.body.product;
-    const quantity = req.body.quantity;
+    const quantity = Number(req.body.quantity);
     const id = req.body.id;
     const flag ='ACTIVE'
 
