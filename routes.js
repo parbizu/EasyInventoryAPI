@@ -193,8 +193,10 @@ router.post('/sendInventory', async (req, res) => {
     
     const userId = req.body.userId;
     let email = req.body.email;
-        
+     
+    
     let items= await getInventories(userId)
+
 
     let lang = (items[1].lang).substring(0,2);
   
@@ -384,6 +386,7 @@ router.put('/item', (req, res) => {
     const product = req.body.product;
     const quantity = req.body.quantity;
     const id = req.body.id;
+    const flag ='ACTIVE'
 
    
     const params = {
@@ -391,10 +394,11 @@ router.put('/item', (req, res) => {
         Key: {
             id
         },
-        UpdateExpression: 'set product = :product,quantity = :quantity',
+        UpdateExpression: 'set product = :product,quantity = :quantity,flag = :flag',
         ExpressionAttributeValues:{
           ":product":product,
-          ":quantity":quantity
+          ":quantity":quantity,
+          ":flag":flag,
         },
         ReturnValues: "ALL_NEW"
     }
