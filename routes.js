@@ -197,10 +197,13 @@ router.post('/sendInventory', async (req, res) => {
     
     let items= await getInventories(userId)
 
+    await updateEmail(userId,email)
 
     let lang = (items[1].lang).substring(0,2);
   
     let attachments = await getInventoryFile (items)
+
+
    
     res.set({
     'Content-Type': 'application/json',
@@ -270,6 +273,38 @@ async function getInventoryFile(items){
 
 }
 
+
+async function updateEmail(userId,email){
+
+   
+    var docClient = new AWS.DynamoDB.DocumentClient();
+    
+    const params = {
+       TableName: 'sw_users',
+       Key: {userId : userId },
+       UpdateExpression: 'set email = :email',
+       ExpressionAttributeValues:{
+         ":email" : email
+       },
+       ReturnValues: "ALL_NEW"
+   };
+   
+   return new Promise(function(resolve, reject) {
+  
+    docClient.update(params, (error, result) => {
+       if (error) {       
+        console.log(error);
+        reject(error);
+       }else{
+        console.log(result)
+        resolve(result);
+       }
+    }); 
+    
+  }) 
+
+
+}
 
 
 async function getInventories(userId){
